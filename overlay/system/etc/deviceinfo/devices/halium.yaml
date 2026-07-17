@@ -1,0 +1,13 @@
+gta4lwifi:
+  Vendor: Samsung
+  PrettyName: Galaxy Tab A7 Wi-Fi
+  DeviceType: tablet
+  GridUnit: 22
+  SupportedOrientations:
+    - Landscape
+    - InvertedLandscape
+    - Portrait
+    - InvertedPortrait
+  XwaylandShm:
+    - true
+  PulseaudioModulesDroid_ExtraCardArgs: "rate=48000"

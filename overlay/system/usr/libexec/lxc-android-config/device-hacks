@@ -1,0 +1,14 @@
+#!/bin/sh
+
+chmod 444 /proc/cmdline
+
+if [ -d /home/phablet/.cache/gstreamer-1.0 ]; then
+    rm -rf /home/phablet/.cache/gstreamer-1.0
+fi
+
+# Run tasks on an idle core instead of scheduling them on busy ones
+echo 15 > /sys/fs/cgroup/schedtune/schedtune.boost
+echo 1 > /sys/fs/cgroup/schedtune/schedtune.prefer_idle
+echo 0 > /proc/sys/kernel/sched_autogroup_enabled
+
+exit 0

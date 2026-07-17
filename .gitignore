@@ -1,0 +1,24 @@
+# Downloaded repositories and generated build trees
+/build/
+/out/
+/tmp/
+/workdir/
+/ota/
+/images/
+/ramdisk-recovery/
+
+# Unrelated template material retained only for local reference
+/parked-template-leftovers/
+
+# Downloaded/generated top-level ramdisk
+/halium-boot-ramdisk.img
+
+# Local logs, editor files, and timestamped safety backups
+*.log
+*.before-*
+*.pre-*
+*.bak
+*.orig
+*~
+*.swp
+*.backup*
