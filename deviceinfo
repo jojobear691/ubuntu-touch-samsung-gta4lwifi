@@ -1,0 +1,43 @@
+deviceinfo_name="Samsung Galaxy Tab A7 Wi-Fi"
+deviceinfo_manufacturer="Samsung"
+deviceinfo_codename="gta4lwifi"
+deviceinfo_arch="aarch64"
+deviceinfo_halium_version="12"
+
+deviceinfo_kernel_source="https://github.com/jojobear691/kernel-samsung-sm6115-halium12.git"
+deviceinfo_kernel_source_branch="gta4lwifi-halium12"
+deviceinfo_kernel_defconfig="gta4l_eur_open_defconfig halium.config"
+
+deviceinfo_kernel_image_name="Image.gz"
+deviceinfo_kernel_build_targets="Image.gz modules"
+deviceinfo_kernel_clang_compile="true"
+deviceinfo_kernel_llvm_compile="false"
+
+deviceinfo_kernel_cmdline="console=tty0 console=ttyMSM0,115200n8 earlycon=msm_geni_serial,0x4a90000 androidboot.console=ttyMSM0 androidboot.hardware=qcom androidboot.memcg=1 lpm_levels.sleep_disabled=1 video=vfb:640x400,bpp=32,memsize=3072000 msm_rtb.filter=0x237 service_locator.enable=1 swiotlb=2048 loop.max_part=7 firmware_class.path=/vendor/firmware_mnt/image buildvariant=userdebug"
+
+deviceinfo_flash_pagesize="4096"
+deviceinfo_flash_offset_base="0x00000000"
+deviceinfo_flash_offset_kernel="0x00008000"
+deviceinfo_flash_offset_ramdisk="0x02000000"
+deviceinfo_flash_offset_second="0x00000000"
+deviceinfo_flash_offset_tags="0x01e00000"
+deviceinfo_flash_offset_dtb="0x01f00000"
+
+deviceinfo_bootimg_header_version="2"
+deviceinfo_bootimg_os_version="12.0.0"
+deviceinfo_bootimg_os_patch_level="2025-03"
+deviceinfo_bootimg_board="SRPTC24A006"
+deviceinfo_bootimg_partition_size="100663296"
+
+deviceinfo_has_recovery_partition="true"
+deviceinfo_recovery_partition_size="103546880"
+
+deviceinfo_bootimg_prebuilt_dtb="prebuilt/gta4lwifi/dtb.img"
+deviceinfo_prebuilt_dtbo="prebuilt/gta4lwifi/dtbo.img"
+
+deviceinfo_rootfs_image_sector_size="4096"
+deviceinfo_use_overlaystore="true"
+deviceinfo_ramdisk_compression="gzip"
+deviceinfo_ubuntu_touch_release="24.04-1.x"
+
+deviceinfo_system_partition_size="3395M"

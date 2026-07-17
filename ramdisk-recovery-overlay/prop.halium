@@ -1,0 +1,4 @@
+ro.sf.lcd_density=320
+ro.boot.dynamic_partitions=true
+service.adb.root=1
+ro.systemimage.system_partition_size=3395
