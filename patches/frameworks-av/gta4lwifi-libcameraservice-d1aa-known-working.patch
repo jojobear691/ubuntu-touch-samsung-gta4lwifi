@@ -1,0 +1,623 @@
+diff --git a/services/camera/libcameraservice/CameraService.cpp b/services/camera/libcameraservice/CameraService.cpp
+index b53aec100e5093143e68eaddff89b7da715eb3ef..49636abb2de4a63b25581449713ea898c1ba4793 100644
+--- a/services/camera/libcameraservice/CameraService.cpp
++++ b/services/camera/libcameraservice/CameraService.cpp
+@@ -25,10 +25,17 @@
+ #include <cstring>
+ #include <ctime>
+ #include <string>
++#include <fstream>
+ #include <sys/types.h>
+ #include <inttypes.h>
+ #include <pthread.h>
++#include <errno.h>
++#include <sys/socket.h>
++#include <sys/stat.h>
++#include <sys/un.h>
++#include <unistd.h>
+ 
++#include <android/looper.h>
+ #include <android/hardware/ICamera.h>
+ #include <android/hardware/ICameraClient.h>
+ 
+@@ -58,6 +65,10 @@
+ #include <mediautils/BatteryNotifier.h>
+ #include <processinfo/ProcessInfoService.h>
+ #include <utils/Errors.h>
++#include <utils/KeyedVector.h>
++#include <utils/Looper.h>
++#include <utils/Mutex.h>
++#include <utils/Thread.h>
+ #include <utils/Log.h>
+ #include <utils/String16.h>
+ #include <utils/SystemClock.h>
+@@ -109,6 +120,231 @@ static void setLogLevel(int level) {
+     android_atomic_write(level, &gLogLevel);
+ }
+ 
++
++// Ubuntu Touch / Halium camera trust bridge:
++// Real TrustAgentRegistry ported from Halium 7.1 CameraService.
++// This provides the accept/read/write side expected by cameraservice-trust-stored.
++namespace {
++
++struct TrustAgentRegistry : public Thread,
++                            public LooperCallback {
++    struct Request {
++        uid_t uid;
++        pid_t pid;
++        uint64_t feature;
++        int64_t startTime;
++    };
++
++    enum Answer {
++        denied = 0,
++        granted = 1
++    };
++
++    explicit TrustAgentRegistry(const char* endpoint)
++            : Thread(false),
++              socketFd(-1),
++              looper(new Looper(false)),
++              enabled(false) {
++        static const int socketErrorCode = -1;
++
++        {
++            // Keep trust enforcement disabled on kernels without global binder PID lookup support.
++            // The socket still exists so cameraservice-trust-stored can connect.
++            std::ifstream kernelSetting;
++            kernelSetting.open("/sys/module/binder/parameters/global_pid_lookups", std::ifstream::in);
++            if (kernelSetting.is_open()) {
++                std::string param;
++                kernelSetting >> param;
++                enabled = (param.find("Y") == 0);
++            }
++        }
++
++        mkdir("/dev/socket", 0755);
++        mkdir("/dev/socket/camera_service", 0777);
++        chmod("/dev/socket/camera_service", 0777);
++
++        socketFd = ::socket(PF_UNIX, SOCK_STREAM, 0);
++        if (socketFd == socketErrorCode) {
++            ALOGE("Could not create unix stream socket");
++            return;
++        }
++
++        ::unlink(endpoint);
++
++        sockaddr_un address;
++        ::memset(&address, 0, sizeof(sockaddr_un));
++        address.sun_family = AF_UNIX;
++        ::strncpy(address.sun_path, endpoint, sizeof(address.sun_path) - 1);
++
++        static const int bindErrorCode = -1;
++        int rc = ::bind(socketFd, reinterpret_cast<sockaddr*>(&address), sizeof(sockaddr_un));
++        if (rc == bindErrorCode) {
++            ALOGE("Could not bind to endpoint");
++            ::close(socketFd);
++            socketFd = -1;
++            return;
++        }
++
++        static const int chmodErrorCode = -1;
++        rc = ::chmod(endpoint, S_IRUSR | S_IWUSR | S_IXUSR |
++                               S_IRGRP | S_IWGRP | S_IXGRP |
++                               S_IROTH | S_IWOTH | S_IXOTH);
++        if (rc == chmodErrorCode) {
++            ALOGE("Could not adjust permissions of endpoint");
++            ::close(socketFd);
++            socketFd = -1;
++            return;
++        }
++
++        static const int listenErrorCode = -1;
++        static const int backLogSize = 5;
++        rc = ::listen(socketFd, backLogSize);
++        if (rc == listenErrorCode) {
++            ALOGE("Could not start listening for incoming connections");
++            ::close(socketFd);
++            socketFd = -1;
++            return;
++        }
++
++        looper->addFd(socketFd,
++                      ALOOPER_POLL_CALLBACK,
++                      ALOOPER_EVENT_INPUT |
++                      ALOOPER_EVENT_ERROR |
++                      ALOOPER_EVENT_INVALID,
++                      sp<LooperCallback>(this),
++                      nullptr);
++
++        ALOGW("UT camera trust socket listening at %s", endpoint);
++        run("TrustAgentRegistry");
++    }
++
++    ~TrustAgentRegistry() override {
++        if (socketFd >= 0) {
++            looper->removeFd(socketFd);
++        }
++        requestExitAndWait();
++        if (socketFd >= 0) {
++            ::close(socketFd);
++            socketFd = -1;
++        }
++    }
++
++    int handleEvent(int fd, int events, void*) override {
++        static const int keepOn = 1;
++        static const int bailOut = 0;
++
++        ALOGD("%s", __PRETTY_FUNCTION__);
++
++        if (fd != socketFd) {
++            return keepOn;
++        }
++
++        if (events & ALOOPER_EVENT_ERROR) {
++            return bailOut;
++        }
++
++        if (events & ALOOPER_EVENT_INVALID) {
++            return bailOut;
++        }
++
++        static const int acceptErrorCode = -1;
++        static const int getSockOptError = -1;
++
++        sockaddr_un address;
++        socklen_t addressLength = sizeof(sockaddr_un);
++
++        struct ucred peerCredentials;
++        ::memset(&peerCredentials, 0, sizeof(struct ucred));
++        socklen_t len = sizeof(peerCredentials);
++
++        int connectionFd = ::accept(socketFd, reinterpret_cast<sockaddr*>(&address), &addressLength);
++        if (connectionFd == acceptErrorCode) {
++            return keepOn;
++        }
++
++        int rc = ::getsockopt(connectionFd, SOL_SOCKET, SO_PEERCRED, &peerCredentials, &len);
++        if (rc == getSockOptError) {
++            ALOGE("Could not query peer credentials");
++            ::close(connectionFd);
++        } else {
++            ALOGD("%s adding uid %d fd %d", __PRETTY_FUNCTION__, peerCredentials.uid, connectionFd);
++            AutoMutex am(remoteAgentsGuard);
++            remoteAgents.add(peerCredentials.uid, connectionFd);
++        }
++
++        return keepOn;
++    }
++
++    bool threadLoop() override {
++        static const int timeoutInMs = -1;
++        int res;
++
++        ALOGD("%s start", __PRETTY_FUNCTION__);
++
++        do {
++            res = looper->pollOnce(timeoutInMs);
++            ALOGD("%s res %d", __PRETTY_FUNCTION__, res);
++        } while (res != ALOOPER_POLL_ERROR && !exitPending());
++
++        ALOGD("%s exit", __PRETTY_FUNCTION__);
++
++        return false;
++    }
++
++    bool verifyConnectRequestFor(uid_t uid, pid_t pid) {
++        int socket = -1;
++
++        if (!enabled) {
++            return true;
++        }
++
++        ALOGD("%s uid %d pid %d", __PRETTY_FUNCTION__, uid, pid);
++
++        {
++            AutoMutex am(remoteAgentsGuard);
++            ssize_t idx = remoteAgents.indexOfKey(uid);
++            if (idx < 0) {
++                ALOGE("No trust store connection found for user %d", uid);
++                return false;
++            }
++
++            socket = remoteAgents[idx];
++        }
++
++        Request request;
++        request.uid = uid;
++        request.pid = pid;
++        request.feature = 0;
++        request.startTime = -1;
++
++        if (::write(socket, &request, sizeof(Request)) == -1) {
++            ALOGE("%s write error: %s (%d)", __PRETTY_FUNCTION__, strerror(errno), errno);
++            return false;
++        }
++
++        int32_t answerFromSocket = denied;
++
++        if (::read(socket, &answerFromSocket, sizeof(int32_t)) == -1) {
++            ALOGE("%s read error: %s (%d)", __PRETTY_FUNCTION__, strerror(errno), errno);
++            return false;
++        }
++
++        ALOGD("%s answerFromSocket %d", __PRETTY_FUNCTION__, answerFromSocket);
++
++        return answerFromSocket == granted;
++    }
++
++    int socketFd;
++    sp<Looper> looper;
++    Mutex remoteAgentsGuard;
++    KeyedVector<uid_t, int> remoteAgents;
++    bool enabled;
++};
++
++static sp<TrustAgentRegistry> trust_agent_registry;
++
++} // namespace
++
+ // Convenience methods for constructing binder::Status objects for error returns
+ 
+ #define STATUS_ERROR(errorCode, errorString) \
+@@ -148,6 +384,10 @@ CameraService::CameraService() :
+         mSoundRef(0), mInitialized(false),
+         mAudioRestriction(hardware::camera2::ICameraDeviceUser::AUDIO_RESTRICTION_NONE) {
+     ALOGI("CameraService started (pid=%d)", getpid());
++    if (trust_agent_registry == nullptr) {
++        trust_agent_registry = sp<TrustAgentRegistry>(
++                new TrustAgentRegistry("/dev/socket/camera_service/camera_service_to_trust"));
++    }
+     mServiceLockWrapper = std::make_shared<WaitableMutexWrapper>(&mServiceLock);
+     mMemFd = memfd_create(sFileName, MFD_ALLOW_SEALING);
+     if (mMemFd == -1) {
+@@ -160,6 +400,7 @@ void CameraService::onFirstRef()
+ 
+     ALOGI("CameraService process starting");
+ 
++
+     BnCameraService::onFirstRef();
+ 
+     // Update battery life tracking if service is restarting
+@@ -1223,7 +1464,17 @@ Status CameraService::validateClientPermissionsLocked(const String8& cameraId,
+     }
+ 
+     // Make sure the UID is in an active state to use the camera
+-    if (!mUidPolicy->isUidActive(callingUid, String16(clientName8))) {
++    const bool utHybrisCanaryClient =
++            ((clientName8 == String8("hybris")) ||
++             (clientName8 == String8("droidmedia"))) &&
++            (callingUid == 32011);
++
++    if (utHybrisCanaryClient) {
++        ALOGW("CameraService::connect: UT hybris/droidmedia canary allowing background camera open "
++                "for client \"%s\" callingUid %d", clientName8.string(), callingUid);
++    }
++
++    if (!utHybrisCanaryClient && !mUidPolicy->isUidActive(callingUid, String16(clientName8))) {
+         int32_t procState = mUidPolicy->getProcState(callingUid);
+         ALOGE("Access Denial: can't use the camera from an idle UID pid=%d, uid=%d",
+             clientPid, clientUid);
+@@ -1234,6 +1485,17 @@ Status CameraService::validateClientPermissionsLocked(const String8& cameraId,
+                 callingUid, procState);
+     }
+ 
++    if (trust_agent_registry != nullptr &&
++            !trust_agent_registry->verifyConnectRequestFor(clientUid, callingPid)) {
++        ALOGE("CameraService::connect X (PID %d \"%s\", camera ID %s) rejected "
++                "by Ubuntu Touch camera trust store for clientUid %d",
++                callingPid, clientName8.string(), cameraId.string(), clientUid);
++        return STATUS_ERROR_FMT(ERROR_PERMISSION_DENIED,
++                "Caller \"%s\" (PID %d, UID %d) rejected by Ubuntu Touch camera trust store "
++                "for camera \"%s\"",
++                clientName8.string(), clientPid, clientUid, cameraId.string());
++    }
++
+     // If sensor privacy is enabled then prevent access to the camera
+     if (mSensorPrivacyPolicy->isSensorPrivacyEnabled()) {
+         ALOGE("Access Denial: cannot use the camera when sensor privacy is enabled");
+@@ -1252,6 +1514,7 @@ Status CameraService::validateClientPermissionsLocked(const String8& cameraId,
+     // Only allow clients who are being used by the current foreground device user, unless calling
+     // from our own process OR the caller is using the cameraserver's HIDL interface.
+     if (getCurrentServingCall() != BinderCallType::HWBINDER && callingPid != getpid() &&
++            !utHybrisCanaryClient &&
+             (mAllowedUsers.find(clientUserId) == mAllowedUsers.end())) {
+         ALOGE("CameraService::connect X (PID %d) rejected (cannot connect from "
+                 "device user %d, currently allowed device users: %s)", callingPid, clientUserId,
+diff --git a/services/camera/libcameraservice/api1/Camera2Client.cpp b/services/camera/libcameraservice/api1/Camera2Client.cpp
+index 8c72bd7213b332ce92975381c72ed492117d2944..22e030790c1c85a5082814fd4d07d475683a77be 100644
+--- a/services/camera/libcameraservice/api1/Camera2Client.cpp
++++ b/services/camera/libcameraservice/api1/Camera2Client.cpp
+@@ -787,8 +787,35 @@ status_t Camera2Client::startPreviewL(Parameters &params, bool restart) {
+     // TODO: Find a better compromise, though this likely would involve HAL
+     // changes.
+     int lastJpegStreamId = mJpegProcessor->getStreamId();
+-    // If jpeg stream will slow down preview, make sure we remove it before starting preview
+-    if (params.slowJpegMode) {
++    String8 utClientPackageName8(mClientPackageName);
++    const bool utDroidmediaNoPreviewJpeg =
++            (utClientPackageName8 == String8("droidmedia"));
++
++    ALOGW("%s: Camera %d: UT droidmedia no-preview-jpeg check package='%s' uid=%d skip=%d",
++            __FUNCTION__, mCameraId, utClientPackageName8.string(), mClientUid,
++            utDroidmediaNoPreviewJpeg ? 1 : 0);
++
++    if (utDroidmediaNoPreviewJpeg) {
++        ALOGW("%s: Camera %d: UT droidmedia canary skipping API1 preview JPEG/BLOB stream",
++                __FUNCTION__, mCameraId);
++    }
++
++    // If jpeg stream will slow down preview, make sure we remove it before starting preview.
++    // TABA7 UT canary: droidmedia/gst-droid preview/video must not create the API1
++    // JPEG/BLOB still stream here, because CamX selects ZSLPreviewRaw_LT1080p and
++    // crashes on the rear flash device index path.
++    if (utDroidmediaNoPreviewJpeg) {
++        if (lastJpegStreamId != NO_STREAM) {
++            ALOGW("%s: Camera %d: UT droidmedia deleting old JPEG/BLOB stream before preview",
++                    __FUNCTION__, mCameraId);
++            res = mJpegProcessor->deleteStream();
++            if (res != OK) {
++                ALOGE("%s: Camera %d: delete old droidmedia JPEG stream failed: %s (%d)",
++                        __FUNCTION__, mCameraId, strerror(-res), res);
++                return res;
++            }
++        }
++    } else if (params.slowJpegMode) {
+         if (lastJpegStreamId != NO_STREAM) {
+             // Pause preview if we are streaming
+             int32_t activeRequestId = mStreamingProcessor->getActiveRequestId();
+diff --git a/services/camera/libcameraservice/api1/client2/CaptureSequencer.cpp b/services/camera/libcameraservice/api1/client2/CaptureSequencer.cpp
+index 4c9b7edce5cce5f3d3924b496cea0d217c8b9ab7..3a807e00d76f323fbc71405ab19003093204ee42 100644
+--- a/services/camera/libcameraservice/api1/client2/CaptureSequencer.cpp
++++ b/services/camera/libcameraservice/api1/client2/CaptureSequencer.cpp
+@@ -169,6 +169,7 @@ void CaptureSequencer::onCaptureAvailable(nsecs_t timestamp,
+             mNewCaptureErrorCnt = 0;
+         }
+         mNewCaptureSignal.signal();
++    } else {
+     }
+ }
+ 
+@@ -233,7 +234,8 @@ bool CaptureSequencer::threadLoop() {
+         currentState = mCaptureState;
+     }
+ 
+-    currentState = (this->*kStateManagers[currentState])(client);
++    CaptureState nextState = (this->*kStateManagers[currentState])(client);
++    currentState = nextState;
+ 
+     Mutex::Autolock l(mStateMutex);
+     if (currentState != mCaptureState) {
+@@ -627,9 +629,14 @@ CaptureSequencer::CaptureState CaptureSequencer::manageStandardCaptureWait(
+ 
+     if (mHalNotifiedShutter) {
+         if (!mShutterNotified) {
+-            SharedParameters::Lock l(client->getParameters());
+-            /* warning: this also locks a SharedCameraCallbacks */
+-            shutterNotifyLocked(l.mParameters, client);
++            /*
++             * Taba7 UT canary:
++             * Do not call shutterNotifyLocked() while holding mInputMutex.
++             * On this port, the shutter notify path can wedge while the JPEG
++             * callback is trying to enter onCaptureAvailable() and take the
++             * same mInputMutex. Mark it notified and continue waiting for
++             * metadata + JPEG buffer.
++             */
+             mShutterNotified = true;
+         }
+     } else if (mTimeoutCount <= 0) {
+diff --git a/services/camera/libcameraservice/api1/client2/JpegProcessor.cpp b/services/camera/libcameraservice/api1/client2/JpegProcessor.cpp
+index a38d7ae606280dafd055cb5281d290714025c2bc..80cd99c550f33e23f388d19d6fcb7204afa209d9 100755
+--- a/services/camera/libcameraservice/api1/client2/JpegProcessor.cpp
++++ b/services/camera/libcameraservice/api1/client2/JpegProcessor.cpp
+@@ -31,6 +31,7 @@
+ #include "api1/client2/Camera2Heap.h"
+ #include "api1/client2/CaptureSequencer.h"
+ #include "api1/client2/JpegProcessor.h"
++#include <cutils/properties.h>
+ 
+ namespace android {
+ namespace camera2 {
+@@ -65,6 +66,17 @@ void JpegProcessor::onFrameAvailable(const BufferItem& /*item*/) {
+ }
+ 
+ status_t JpegProcessor::updateStream(const Parameters &params) {
++    if (property_get_bool("debug.taba7.no_api1_jpeg_stream", false)) {
++        ALOGW("%s: TABA7 canary skipping API1 JPEG/BLOB stream by property", __FUNCTION__);
++        if (mCaptureStreamId != NO_STREAM) {
++            status_t deleteRes = deleteStream();
++            if (deleteRes != OK) {
++                ALOGW("%s: TABA7 canary delete old JPEG/BLOB stream failed: %s (%d)",
++                        __FUNCTION__, strerror(-deleteRes), deleteRes);
++            }
++        }
++        return OK;
++    }
+     ATRACE_CALL();
+     ALOGV("%s", __FUNCTION__);
+     status_t res;
+@@ -281,6 +293,7 @@ status_t JpegProcessor::processNewCapture(bool captureSuccess) {
+     sp<CaptureSequencer> sequencer = mSequencer.promote();
+     if (sequencer != 0) {
+         sequencer->onCaptureAvailable(imgBuffer.timestamp, captureBuffer, !captureSuccess);
++    } else {
+     }
+ 
+     return OK;
+diff --git a/services/camera/libcameraservice/device3/Camera3Device.cpp b/services/camera/libcameraservice/device3/Camera3Device.cpp
+index 8f080bec877b61cb4202ca686e7a8c9f2986ea85..e16aa3b46a6285265f156250eb06a44b1ce6db77 100644
+--- a/services/camera/libcameraservice/device3/Camera3Device.cpp
++++ b/services/camera/libcameraservice/device3/Camera3Device.cpp
+@@ -1362,6 +1362,18 @@ status_t Camera3Device::createStream(sp<Surface> consumer,
+             uint64_t consumerUsage) {
+     ATRACE_CALL();
+ 
++    if (property_get_bool("debug.taba7.drop_blob_stream_v2", false) &&
++            format == HAL_PIXEL_FORMAT_BLOB) {
++        ALOGW("%s: TABA7 canary v2 dropping HAL_PIXEL_FORMAT_BLOB stream width=%u height=%u "
++                "format=%d dataSpace=0x%x rotation=%d",
++                __FUNCTION__, width, height, format, dataSpace, rotation);
++        if (id != nullptr) {
++            *id = NO_STREAM;
++        }
++        return OK;
++    }
++
++
+     if (consumer == nullptr) {
+         ALOGE("%s: consumer must not be null", __FUNCTION__);
+         return BAD_VALUE;
+@@ -1395,6 +1407,19 @@ status_t Camera3Device::createStream(const std::vector<sp<Surface>>& consumers,
+         uint64_t consumerUsage) {
+     ATRACE_CALL();
+ 
++    if (property_get_bool("debug.taba7.drop_blob_stream", false) &&
++            format == HAL_PIXEL_FORMAT_BLOB) {
++        ALOGW("%s: TABA7 canary dropping HAL_PIXEL_FORMAT_BLOB stream width=%u height=%u "
++                "dataSpace=0x%x rotation=%d hasDeferredConsumer=%d consumers=%zu",
++                __FUNCTION__, width, height, dataSpace, rotation,
++                hasDeferredConsumer ? 1 : 0, consumers.size());
++        if (id != nullptr) {
++            *id = NO_STREAM;
++        }
++        return OK;
++    }
++
++
+     Mutex::Autolock il(mInterfaceLock);
+     nsecs_t maxExpectedDuration = getExpectedInFlightDuration();
+     Mutex::Autolock l(mLock);
+@@ -2736,6 +2761,49 @@ status_t Camera3Device::configureStreamsLocked(int operatingMode,
+     // fields for IMPLEMENTATION_DEFINED formats.
+ 
+     const camera_metadata_t *sessionBuffer = sessionParams.getAndLock();
++    if (property_get_bool("debug.taba7.force_global_blob_filter", false)) {
++        uint32_t originalNumStreams = config.num_streams;
++        uint32_t keptStreams = 0;
++
++        ALOGW("%s: TABA7 optional HAL config BLOB filter running, original streams=%u",
++                __FUNCTION__, originalNumStreams);
++
++        for (uint32_t streamIndex = 0; streamIndex < originalNumStreams; streamIndex++) {
++            auto *stream = config.streams[streamIndex];
++
++            if (stream != nullptr) {
++                ALOGW("%s: TABA7 HAL stream[%u] type=%d format=%d width=%u height=%u "
++                        "usage=0x%llx dataSpace=0x%x",
++                        __FUNCTION__, streamIndex, stream->stream_type, stream->format,
++                        stream->width, stream->height,
++                        (unsigned long long) stream->usage, stream->data_space);
++            }
++
++            if (stream != nullptr &&
++                    stream->stream_type == CAMERA_STREAM_OUTPUT &&
++                    stream->format == HAL_PIXEL_FORMAT_BLOB) {
++                ALOGW("%s: TABA7 optional filtering BLOB stream before HAL configure "
++                        "index=%u width=%u height=%u format=%d usage=0x%llx dataSpace=0x%x",
++                        __FUNCTION__, streamIndex, stream->width, stream->height,
++                        stream->format, (unsigned long long) stream->usage, stream->data_space);
++                continue;
++            }
++
++            config.streams[keptStreams++] = stream;
++        }
++
++        if (keptStreams != originalNumStreams) {
++            ALOGW("%s: TABA7 optional filtered HAL stream config count %u -> %u",
++                    __FUNCTION__, originalNumStreams, keptStreams);
++            config.num_streams = keptStreams;
++        }
++    } else {
++        ALOGW("%s: TABA7 global HAL BLOB filter disabled, streams=%u",
++                __FUNCTION__, config.num_streams);
++    }
++
++
++
+     res = mInterface->configureStreams(sessionBuffer, &config, bufferSizes);
+     sessionParams.unlock(sessionBuffer);
+ 
+@@ -3277,21 +3345,43 @@ status_t Camera3Device::HalInterface::configureStreams(const camera_metadata_t *
+ 
+     // Convert stream config to HIDL
+     std::set<int> activeStreams;
++    std::set<int> taba7FilteredBlobStreamIds;
+     device::V3_2::StreamConfiguration requestedConfiguration3_2;
+     device::V3_4::StreamConfiguration requestedConfiguration3_4;
+     device::V3_7::StreamConfiguration requestedConfiguration3_7;
+     requestedConfiguration3_2.streams.resize(config->num_streams);
+     requestedConfiguration3_4.streams.resize(config->num_streams);
+     requestedConfiguration3_7.streams.resize(config->num_streams);
++
++    size_t requestedStreamCount = 0;
+     for (size_t i = 0; i < config->num_streams; i++) {
+-        device::V3_2::Stream &dst3_2 = requestedConfiguration3_2.streams[i];
+-        device::V3_4::Stream &dst3_4 = requestedConfiguration3_4.streams[i];
+-        device::V3_7::Stream &dst3_7 = requestedConfiguration3_7.streams[i];
+         camera3::camera_stream_t *src = config->streams[i];
+ 
++        if (src == nullptr) {
++            ALOGE("%s: TABA7 HIDL filter saw null source stream at original index %zu",
++                    __FUNCTION__, i);
++            return BAD_VALUE;
++        }
++
+         Camera3Stream* cam3stream = Camera3Stream::cast(src);
+-        cam3stream->setBufferFreedListener(this);
+         int streamId = cam3stream->getId();
++
++        if (property_get_bool("debug.taba7.force_hidl_blob_filter", false) &&
++                src->stream_type == CAMERA_STREAM_OUTPUT &&
++                src->format == HAL_PIXEL_FORMAT_BLOB) {
++            ALOGW("%s: TABA7 optional HIDL filtering BLOB stream before provider configure "
++                    "originalIndex=%zu streamId=%d width=%u height=%u usage=0x%llx dataSpace=0x%x",
++                    __FUNCTION__, i, streamId, src->width, src->height,
++                    (unsigned long long) src->usage, src->data_space);
++            taba7FilteredBlobStreamIds.insert(streamId);
++            continue;
++        }
++
++        device::V3_2::Stream &dst3_2 = requestedConfiguration3_2.streams[requestedStreamCount];
++        device::V3_4::Stream &dst3_4 = requestedConfiguration3_4.streams[requestedStreamCount];
++        device::V3_7::Stream &dst3_7 = requestedConfiguration3_7.streams[requestedStreamCount];
++
++        cam3stream->setBufferFreedListener(this);
+         StreamType streamType;
+         switch (src->stream_type) {
+             case CAMERA_STREAM_OUTPUT:
+@@ -3338,7 +3428,18 @@ status_t Camera3Device::HalInterface::configureStreams(const camera_metadata_t *
+         activeStreams.insert(streamId);
+         // Create Buffer ID map if necessary
+         mBufferRecords.tryCreateBufferCache(streamId);
++
++        requestedStreamCount++;
+     }
++
++    if (requestedStreamCount != config->num_streams) {
++        ALOGW("%s: TABA7 HIDL canary filtered provider stream count %u -> %zu",
++                __FUNCTION__, config->num_streams, requestedStreamCount);
++        requestedConfiguration3_2.streams.resize(requestedStreamCount);
++        requestedConfiguration3_4.streams.resize(requestedStreamCount);
++        requestedConfiguration3_7.streams.resize(requestedStreamCount);
++    }
++
+     // remove BufferIdMap for deleted streams
+     mBufferRecords.removeInactiveBufferCaches(activeStreams);
+ 
+@@ -3492,6 +3593,13 @@ status_t Camera3Device::HalInterface::configureStreams(const camera_metadata_t *
+         camera3::camera_stream_t *dst = config->streams[i];
+         int streamId = Camera3Stream::cast(dst)->getId();
+ 
++        if (taba7FilteredBlobStreamIds.count(streamId) != 0) {
++            ALOGW("%s: TABA7 optional HIDL skipping filtered BLOB stream final config "
++                    "index=%zu streamId=%d format=%d",
++                    __FUNCTION__, i, streamId, dst != nullptr ? dst->format : -1);
++            continue;
++        }
++
+         // Start scan at i, with the assumption that the stream order matches
+         size_t realIdx = i;
+         bool found = false;
