@@ -69,6 +69,22 @@ Downloaded repositories, build outputs, OTA files, installation images,
 local backups, and test work directories are intentionally excluded from
 Git.
 
+## Camera source and artifact provenance
+
+The known-working camera-service changes are published as a
+source-only record. The text patch does not run automatically or
+modify a device, and the compiled `libcameraservice.so` is not
+included.
+
+Droidmedia remains part of the known-working Ubuntu Touch camera
+path for this device.
+
+- [Camera source record](patches/frameworks-av/README.md)
+- [Camera security notes](patches/frameworks-av/SECURITY.md)
+- [Exact camera source manifest](provenance/frameworks-av-d1aa-source-manifest.txt)
+- [Port source and artifact provenance](docs/PROVENANCE.md)
+- [Published checksums](checksums/)
+
 ## Building
 
 On a supported Ubuntu build host:
