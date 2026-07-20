@@ -96,9 +96,16 @@ On a supported Ubuntu build host:
 The build script downloads the UBports Halium generic adaptation build
 tools and clones the public kernel branch declared in `deviceinfo`.
 
-Build and installation procedures are still being documented and tested.
-Do not flash generated images without understanding Samsung Download Mode,
-the device partition layout, and the required Android 12 base.
+## Manual installation
+
+The [manual installation guide](docs/INSTALL.md) records the maintainer-tested
+sequence for the exact SM-T500 base and June 5, 2026 release artifacts.
+
+Release images and the historical audio/Wi-Fi post-install layer are hosted on
+[SourceForge](https://sourceforge.net/projects/ubuntu-touch-galaxy-tab-a7/files/),
+not in this Git repository. The older `Install_Directions.txt` bundled with the
+release is known not to describe a reliable complete installation; use
+`docs/INSTALL.md` instead.
 
 ## Installation safety
 
@@ -110,9 +117,9 @@ the device partition layout, and the required Android 12 base.
 - This software is provided without warranty; you accept the risk of
   device damage or data loss.
 
-A tested release package and complete installation guide will be published
-separately from the Git source after the current state has been assembled
-and verified.
+The Git repository contains source and documentation only. Obtain installation
+artifacts from the linked release host and verify every published checksum
+before flashing.
 
 ## Credits
 
