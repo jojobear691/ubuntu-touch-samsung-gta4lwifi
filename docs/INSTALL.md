@@ -23,7 +23,8 @@ locally built images that are not stored in this Git repository.
 > known not to describe a reliable complete installation. Do not use it as the
 > authority for partition preparation or installation order. This document
 > supersedes those instructions and records the maintainer-confirmed working
-> route. SourceForge is referenced here only as the release-artifact host.
+> route. SourceForge and GitHub Releases are referenced here only as
+release-artifact hosts.
 
 ## Evidence and limitations
 
@@ -53,17 +54,34 @@ The tested Android base package was:
 
 ```text
 lineage-19.1-20260529-UNOFFICIAL-gta4lwifi-nofirmwareassert.zip
+Size: 903,365,460 bytes
 SHA-256: f3f88ac09843afd7fc07e6e6ff5202af4b4ba016f1a52805230156c7745ed85a
 ```
+
+Direct download:
+
+<https://github.com/jojobear691/ubuntu-touch-samsung-gta4lwifi/releases/download/android-base-20260529/lineage-19.1-20260529-UNOFFICIAL-gta4lwifi-nofirmwareassert.zip>
+
+Release notes and provenance:
+
+<https://github.com/jojobear691/ubuntu-touch-samsung-gta4lwifi/releases/tag/android-base-20260529>
+
+The published file is the exact package used in the maintainer-tested
+installation. It was derived from the locally built
+`lineage-19.1-20260529-UNOFFICIAL-gta4lwifi.zip` (SHA-256
+`69a7ddd4c92acc135c5ea3b7b42d280c31b12b5996afd25393eccd9dbe0ec5bd`).
+The only package change recorded during creation was removal of the
+`samsung.verify_trustzone("XF.5.1-01015-1")` updater assertion.
 
 This ZIP installs the matching Android 12 `system`, `vendor`, `product`, and
 `odm` logical partitions. Its updater also flashes its own boot, DTBO, and
 vbmeta images. Inspection with `avbtool` reported vbmeta flags `3`, meaning
-hashtree and AVB verification are disabled. Do not substitute an arbitrary
-LineageOS build or Android base.
+hashtree and AVB verification are disabled.
 
-The ZIP is not stored in this Git repository. It is included in the fully
-evidenced SourceForge release below. Verify the checksum before using it.
+The June 5 and June 20 SourceForge packs both omit this ZIP. Download it
+separately from the GitHub release above and verify its checksum. The tested
+procedure still depends on this exact Android base; do not substitute another
+LineageOS build or Android base.
 
 ### Tested recovery
 
@@ -127,8 +145,9 @@ images/system.img
 SHA256SUMS.txt
 ```
 
-It also contains the exact LineageOS ZIP and the historical audio/Wi-Fi
-post-install layer used by this procedure. The package's old
+It does not contain the LineageOS ZIP. Obtain that exact file separately from
+the GitHub release linked above. The package does contain the historical
+audio/Wi-Fi post-install layer used by this procedure. The package's old
 `Install_Directions.txt` is not authoritative; use this guide instead.
 
 Do not combine images from different builds. Do not use
@@ -142,13 +161,13 @@ sha256sum --check SHA256SUMS.txt
 
 Stop if any checksum fails.
 
-Verify the included LineageOS ZIP separately:
+Verify the separately downloaded LineageOS ZIP:
 
 ```bash
+LINEAGE_ZIP='lineage-19.1-20260529-UNOFFICIAL-gta4lwifi-nofirmwareassert.zip'
 printf '%s  %s\n' \
   'f3f88ac09843afd7fc07e6e6ff5202af4b4ba016f1a52805230156c7745ed85a' \
-  'images/lineage-19.1-20260529-UNOFFICIAL-gta4lwifi-nofirmwareassert.zip' \
-  |
+  "$LINEAGE_ZIP" |
   sha256sum --check -
 ```
 
@@ -466,7 +485,8 @@ installation log when troubleshooting.
 This source repository intentionally excludes:
 
 - Samsung or Qualcomm proprietary firmware;
-- LineageOS installation ZIPs;
+- LineageOS installation ZIPs in the Git source tree (the exact tested ZIP is
+  published separately as a GitHub release asset);
 - OrangeFox binaries;
 - generated Ubuntu Touch installation images;
 - the release-bundled audio/Wi-Fi helper layer;
