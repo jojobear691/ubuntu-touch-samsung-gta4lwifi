@@ -46,6 +46,14 @@ The exact OrangeFox build and LineageOS package listed below were confirmed by
 the maintainer. OrangeFox is an unofficial third-party build. Neither package
 is maintained by UBports or by this repository.
 
+The maintainer's working Lomiri/display results remain the established port
+baseline. A later [tester report in issue #4](https://github.com/jojobear691/ubuntu-touch-samsung-gta4lwifi/issues/4#issuecomment-5917095263)
+identified an image-path mismatch when reproducing this procedure with the
+June 5 pack. Copying the embedded Android image to userdata let that tester's
+Android container start, but they still reported graphics/linker/composer
+errors. The source correction below addresses image selection and mounting;
+it does not establish that those separate tester graphics errors are fixed.
+
 ## Required files
 
 ### Android base
@@ -354,6 +362,60 @@ stat -c '%n %s' images/rootfs.img images/system.img
 
 Do not continue if either transfer failed or a size differs.
 
+### Android image selection in corrected boot builds
+
+A boot image rebuilt with the corrected `ramdisk-overlay/scripts/halium`
+mounts the exact file found by image detection. `rootfs.img` on userdata does
+not force the Android image to be on userdata too. At boot, userdata is mounted
+at `/tmpmnt` and the Ubuntu image at `/halium-system`.
+
+The existing detection priority is preserved, highest first:
+
+1. `/halium-system/var/lib/lxc/android/android-rootfs.img`
+2. `/halium-system/var/lib/lxc/android/system.img`
+3. `/tmpmnt/android-rootfs.img`
+4. `/tmpmnt/system.img`
+
+`android-rootfs.img` is mounted as the Android root filesystem; `system.img`
+is mounted as Android's system filesystem and its Android ramdisk is extracted.
+With the embedded image present, the corrected boot script uses it directly.
+No extra `/data/android-rootfs.img` copy or image rename is needed. Keep the
+release's `rootfs.img` and `system.img` together as above.
+
+### Older published boot images
+
+Editing this repository does not change the `boot.img` already in the June 5
+or June 20 archives. Those images must not be described as containing this
+source fix without inspecting or rebuilding their ramdisks.
+
+For the June 5 boot image, the tester's recovery workaround was to copy the
+embedded Android image unchanged onto userdata. After the transfers above,
+from an interactive OrangeFox shell (`adb shell`):
+
+```sh
+mkdir -p /tmp/ut-rootfs
+mount -o loop,ro /data/rootfs.img /tmp/ut-rootfs
+sha256sum /tmp/ut-rootfs/var/lib/lxc/android/android-rootfs.img
+```
+
+For the image reported in issue #4, the hash was
+`7b5916f4fc28b0e3f249a564269791d42afd2b9f034378fb6528ed9f14ccb80d`.
+Stop if the image is absent or differs from this June 5 identity. Copy and
+verify it, keeping the Ubuntu image mounted read-only:
+
+```sh
+cp /tmp/ut-rootfs/var/lib/lxc/android/android-rootfs.img /data/android-rootfs.img
+sha256sum /tmp/ut-rootfs/var/lib/lxc/android/android-rootfs.img /data/android-rootfs.img
+sync
+umount /tmp/ut-rootfs
+exit
+```
+
+Both hashes must match. This records the tester's container-start workaround,
+not a successful complete installation on that tablet. Prefer the corrected
+script in a future matched release rather than making this duplicate image a
+permanent installation requirement.
+
 ## 6. First boot
 
 Use OrangeFox's interface to reboot manually into System. First boot can take
@@ -370,8 +432,9 @@ recovery and recheck:
 - boot and DTBO came from the same Ubuntu Touch build;
 - the tested Android 12 vendor and ODM base was installed.
 
-The Halium ramdisk intentionally locates `rootfs.img` and `system.img` on the
-userdata filesystem and mounts the Android image for the LXC container.
+The Halium ramdisk locates `rootfs.img` on userdata and mounts the selected
+Android image for LXC from its detected path. For the older boot-image
+workaround, also verify `/data/android-rootfs.img` against its embedded source.
 
 ## 7. Apply the bundled audio/Wi-Fi layer
 
