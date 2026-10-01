@@ -128,9 +128,9 @@ corresponding source.
 ### `ramdisk-overlay/scripts/halium`
 
 - SHA-256:
-  `e0eaa72aa1a63988803b7f1901df0d792d22636a9ae122581087436696543c9d`
+  `6684301e09c6e531075b4c9f297cc49127a679c1756a2a51884c82be423e640a`
 - Git blob:
-  `c957751e0825d2512036ebe84a271ee4e5982f5b`
+  `7f9fdbbd342fc2c289aeda8574ca575ad8d20909`
 
 This script is derived from Halium initramfs work but is not identical
 to either the current upstream script or the Sargo-template copy
@@ -142,6 +142,55 @@ Upstream project:
 
 It must therefore be described as an adapted Halium script. Its exact
 historical base revision has not been established.
+
+#### Image-layout correction and pinned comparison reference
+
+The image-selection/mount correction was compared against
+[`scripts/halium` at `e6a91ad5dbd62521629ecd6f90d93c10884dc846`](https://github.com/Halium/initramfs-tools-halium/blob/e6a91ad5dbd62521629ecd6f90d93c10884dc846/scripts/halium)
+on upstream's `halium` branch. This is a comparison reference, not a claim
+that this revision was the port script's historical base.
+
+At port commit `1b990e0871390bef6ad49faf10c3c585aeb929e1`, the
+`identify_android_image` function and the later Android image mount block
+match that reference's behavior: detection checks both userdata and embedded
+images, but mounting reconstructs the location from `file_layout`. An
+embedded image can therefore determine the mode while a nonexistent userdata
+file is passed to `mount`. Copying the upstream code unchanged would retain
+this bug.
+
+The local correction carries `ANDROID_IMAGE_PATH` alongside
+`ANDROID_IMAGE_MODE` and mounts that exact path. It resets both variables on
+each detection, retains the existing candidate precedence, mount options,
+rootfs bind mount and system-image ramdisk extraction, and skips an image
+mount when no candidate was found. It changes neither Ubuntu rootfs layout
+nor the recovery, LVM, dynamic-partition or overlay adaptations elsewhere in
+the port script.
+
+A source-level regression check runs the actual shell selection and mount
+code with isolated temporary files and a stubbed `mount`. Run from the
+repository root:
+
+```sh
+python3 -m unittest discover -s tests -v
+sh -n ramdisk-overlay/scripts/halium
+sha256sum --check checksums/PORT_ARTIFACTS_SHA256SUMS
+```
+
+The check covers all 16 candidate combinations across halium, legacy, subdir
+and partition layouts, resets stale selection state, and checks writable
+image flags and mount-error diagnostics. It performs no real mounts or
+flashes. `HALIUM_SCRIPT=/path/to/older/script` selects another script for a
+negative regression check.
+
+The [issue #4 tester report](https://github.com/jojobear691/ubuntu-touch-samsung-gta4lwifi/issues/4#issuecomment-5917095263)
+records that copying the embedded Android image to userdata started their
+container. Both copies had SHA-256
+`7b5916f4fc28b0e3f249a564269791d42afd2b9f034378fb6528ed9f14ccb80d`.
+The source regression check validates path consistency; it is not runtime
+validation of a rebuilt boot image or a fix for that tester's separate
+graphics errors. The maintainer's established working Lomiri/display status
+remains unchanged. Previously published archive images are not modified by
+this source change.
 
 ### `overlay/system/etc/ofono/ril_subscription.conf`
 
