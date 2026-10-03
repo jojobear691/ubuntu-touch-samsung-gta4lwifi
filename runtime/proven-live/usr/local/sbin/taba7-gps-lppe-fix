@@ -1,20 +1,29 @@
 #!/bin/sh
 set -eu
 
+ready=0
 for i in $(seq 1 60); do
-  if sudo lxc-info -n android 2>/dev/null | grep -q "RUNNING"; then
-    if sudo lxc-attach -n android -- sh -c 'test -f /vendor/etc/gps.conf' 2>/dev/null; then
-      break
-    fi
+  if lxc-info -n android 2>/dev/null | grep -q "RUNNING" \
+      && lxc-attach -n android -- /system/bin/sh -c 'test -f /vendor/etc/gps.conf' 2>/dev/null; then
+    ready=1
+    break
   fi
   sleep 2
 done
 
-sudo lxc-attach -n android -- sh -c '
+if [ "$ready" -ne 1 ]; then
+  echo "Android container or vendor gps.conf did not become ready" >&2
+  exit 1
+fi
+
+lxc-attach -n android -- /system/bin/sh -c '
 set -eu
+PATH=/system/bin:/system/xbin:/vendor/bin:/odm/bin:/sbin
+export PATH
 ORIG=/vendor/etc/gps.conf
 FIX=/data/local/tmp/gps.conf.taba7-lppe-fixed
 
+echo GPS_FIX_STAGE=prepare
 umount "$ORIG" 2>/dev/null || true
 cp "$ORIG" "$FIX"
 
@@ -32,10 +41,12 @@ set_spaced_kv LPPE_CP_TECHNOLOGY 0
 set_spaced_kv LPPE_UP_TECHNOLOGY 0
 set_spaced_kv AGPS_CONFIG_INJECT 1
 
+echo GPS_FIX_STAGE=bind
 mount --bind "$FIX" "$ORIG"
+echo GPS_FIX_STAGE=restart
 setprop ctl.restart gnss_service
 sleep 6
 
-echo GNSS_SERVICE=$(getprop init.svc.gnss_service)
+echo "GNSS_SERVICE=$(getprop init.svc.gnss_service)"
 grep -Ei "AGPS_CONFIG|LPP_PROFILE|LPPE" "$ORIG" || true
 '

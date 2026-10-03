@@ -1,5 +1,7 @@
 08722c8992b672ca501fbbae39921afe0224a05e0e074c20d55a33512fb54c34  ./data/local/tmp/taba7-v10-media-camera-island-inner.sh
+c1cce14119598c92b4693dd9f8edcdb4fa78e65e18a108a6037d68c1413ab6c9  ./etc/systemd/system/android-set-boot-completion-property.service.d/gta4lwifi.conf
 5b98769665fb4fd16f8867629b08809c63fb7a3202fe5e755eaf5971a1f21c82  ./etc/systemd/system/bluebinder.service.d/10-taba7-final.conf
+b2bb7a482cb5e4b688bcff55adb02bd525d421a71bcffeb4ab35a12a001f5d80  ./etc/systemd/system/systemd-udev-trigger.service.d/gta4lwifi.conf
 8d51d4d1128a0c3ed1d5f247b86bf81ea0f3cd2f65d991994be9d1356ad5a2f1  ./etc/systemd/system/taba7-about-button-disabled-bind.service
 e8f072eadd48ccf1d6f18d85cbf5080910bf55e67776cdcbf1fcc176e7c6503b  ./etc/systemd/system/taba7-android-audio-hal.service
 cfd42725ff3c1f577d160e930fa505eaffc41ab88be0a39167c072770e78caec  ./etc/systemd/system/taba7-apt-userdata-bind.service
@@ -13,6 +15,7 @@ f2844cec5ab592a2b221cfe3e6bf4ca80ae2f5c695711afc85870cb75cc080c2  ./etc/systemd/
 d3b6460c68e46b23bee4f9cb5e8ed229d205604d24ab2b5005e32c73d4b747a3  ./etc/systemd/system/taba7-camera-island.service
 cec720cc925c82672ff4c6aa0399c335fdc56abbcd77f2e6b834621a3145fe34  ./etc/systemd/system/taba7-camera-photo-fix-bind.service
 f17b7c19e9e1878940eb1cca263888c3aaad9715f3f26bb717229fe7c8fc5c29  ./etc/systemd/system/taba7-camera-qml-preview-bind.service
+1f8d32c007d17b795b1a7d3d543084264c84f81c51a3faae3a6d5131bebd2651  ./etc/systemd/system/taba7-gps-lppe-fix.service
 ff10204fc6fa542ee0761456201bef871a07e87569badf999fd6e0c4eeb668c1  ./etc/systemd/system/taba7-hide-extra-wifi.service
 6fc6aeaaff14fd9e503c6fb46dfe0907a93a29dae923e30107d499351f4f1d80  ./etc/systemd/system/taba7-patched-mediahub-bind.service
 5b89a69091afda9c98f07edc5246265ba08776b3dc56075ea46e04dfcdb9ef31  ./etc/systemd/system/taba7-scheduling-policy.service
@@ -26,10 +29,8 @@ e7617918a4857f7a32d6b46577bb24b58e9bab39dca2670efe8d6720b935d6a0  ./etc/systemd/
 064fc31da02dbfc3ac9a25a09c4b99dda0e629c2feba97e153a6c4cc4dd78cdf  ./home/phablet/.config/systemd/user/cameraservice-trust-stored.service.d/wait-for-camera-socket.conf
 b796eaa011fc946b42a39c476dc6f1cb8ad42ee05dcd0245a03ba51b0765a7db  ./home/phablet/.config/systemd/user/lomiri-location-service-trust-stored-wayland.service.d/override.conf
 25356375333074d1dcc33909413b9e161cd202f133c063ef352c148589d36d1e  ./home/phablet/.config/systemd/user/lomiri-location-service-trust-stored.service.d/override.conf
-5f3ac7a715335e533328bf6985823a373e15d0f67cd2ae73b6adacddadfbfb28  ./home/phablet/.config/systemd/user/taba7-gps-lppe-fix.service
 c18569c46ed4485693d8d590ef9c1267a20320667a684a65fe4476ee84a862ac  ./home/phablet/.config/systemd/user/taba7-mic-known-good.service
 c27c2039d72f2b6360d41a5ea1373ee94e7e789771bd28376a53ef85ab860dc7  ./home/phablet/.config/systemd/user/taba7-video-helper-http.service
-7611d629805e907015f3178d4c2997f8f047efdf2d0aacd46a881a041b7258ac  ./home/phablet/bin/taba7-gps-lppe-fix.sh
 c9c4d475f3fd6755aa635bbdb9de006a8fb7e94050a5f9b6f7c2b4c50c9bf162  ./home/phablet/camera-fixed-clean-preview-1280/BarcodeReaderOverlay.qml
 363ef3f04689a622bedc8f966c3e6655b8589e8f28a30604c93c1905064b6d77  ./home/phablet/camera-fixed-clean-preview-1280/ViewFinderOverlay.qml
 0076c5933e25f380e601da86ea8f2c250345518545144a4ffea837e9b2d7bb1a  ./home/phablet/camera-fixed-clean-preview-1280/ViewFinderView.qml
@@ -54,6 +55,8 @@ a008211206b760555cf359e0690cc22904a88f6df932bc53902a2ea8b639f6ef  ./userdata/ut-
 8b58b32f065125da0c06154029e80da60e5b6c6c1b01d581101c55f264dd6bf1  ./userdata/ut-scripts/taba7-sensors-known-good.sh
 5100ac53282780cca504819fc1190aac15770f82a2abdc7c7c53dc090a1924c4  ./userdata/ut-scripts/taba7-v10-media-camera-island.sh
 f32b0ac1ce8285a7fc68ffe4d78f5ec11da977a0fb30d303e912353f35d31131  ./userdata/ut-scripts/taba7-wlan-on.sh
+f23d7358053a27fde86e1ad8fc455d2a3257d68ab5ff85057d9d785a3071e8ce  ./usr/local/sbin/gta4lwifi-set-android-boot-complete
 bb45ad21019b485e3cf00d27bffb91c6d7f5a871778b88034c9bea7bb102bd24  ./usr/local/sbin/taba7-camera-delayed-boot-fix.sh
 168605a0ac285de3a4b5b92f0abcbe692c3f6b95151426c648275e8566830f57  ./usr/local/sbin/taba7-camera-photo-fix-bind.sh
+0ae9944a1eb1fd20dd4df6622f0834338e4b18cd94118ac19e510c2b4d3f7a94  ./usr/local/sbin/taba7-gps-lppe-fix
 e5e12e2a00fc15e6018296c731c2bdaaf511a1c25e0cea05c433b38058814834  ./usr/local/sbin/ut-gta4lwifi-start-ui.sh

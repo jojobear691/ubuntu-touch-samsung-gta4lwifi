@@ -16,6 +16,10 @@ system account, not private owner information.
 
 - Wi-Fi, audio, sensor, scheduling, Bluetooth, UI, and camera shell scripts;
 - their system and user systemd units/drop-ins;
+- root-owned GPS and Android boot-completion helpers that wait for the custom
+  Android container without embedding or prompting for a sudo password;
+- a fake-udev-trigger override matching the deliberately disabled stock
+  Android-container launcher;
 - the current Camera application QML overrides;
 - the text AppArmor override used with the patched media-hub service; and
 - the camera trust-agent restart drop-in added after proving an EOF busy-loop

@@ -1,0 +1,21 @@
+#!/bin/sh
+set -eu
+
+ready=0
+for i in $(seq 1 120); do
+  if lxc-info -n android 2>/dev/null | grep -q "RUNNING" \
+      && lxc-attach -n android -- /system/bin/getprop ro.build.version.release >/dev/null 2>&1; then
+    ready=1
+    break
+  fi
+  sleep 1
+done
+
+if [ "$ready" -ne 1 ]; then
+  echo "Android property service did not become ready" >&2
+  exit 1
+fi
+
+lxc-attach -n android -- /system/bin/setprop dev.bootcomplete 1
+lxc-attach -n android -- /system/bin/setprop sys.boot_completed 1
+lxc-attach -n android -- /system/bin/setprop init.svc.bootanim stopped
