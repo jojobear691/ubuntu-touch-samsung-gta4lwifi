@@ -1,0 +1,35 @@
+From 3fc4ddf6594132eeb53e5161ba1106e9bde12999 Mon Sep 17 00:00:00 2001
+From: Jomama691 <245727092+jojobear691@users.noreply.github.com>
+Date: Sat, 3 Oct 2026 14:08:37 -0600
+Subject: [PATCH 3/3] gta4l-common: add legacy UM SELinux compatibility types
+
+---
+ sepolicy/vendor/file.te     | 6 ++++++
+ sepolicy/vendor/property.te | 3 +++
+ 2 files changed, 9 insertions(+)
+
+diff --git a/sepolicy/vendor/file.te b/sepolicy/vendor/file.te
+index 0fb2a93..b37ffff 100644
+--- a/sepolicy/vendor/file.te
++++ b/sepolicy/vendor/file.te
+@@ -7,3 +7,9 @@ type mps_efs_file, file_type;
+ 
+ type sysfs_sec_switch, fs_type, sysfs_type;
+ type sysfs_tsp, fs_type, sysfs_type;
++
++# LOS19.1 compatibility for lineage-20 QCOM legacy UM sepolicy.
++type proc_watermark_boost_factor, fs_type, proc_type;
++type proc_watermark_scale_factor, fs_type, proc_type;
++
++# LOS19.1 compatibility for lineage-20 QCOM legacy UM sepolicy.
+diff --git a/sepolicy/vendor/property.te b/sepolicy/vendor/property.te
+index 69cb64b..3b38a12 100644
+--- a/sepolicy/vendor/property.te
++++ b/sepolicy/vendor/property.te
+@@ -6,3 +6,6 @@ vendor_internal_prop(vendor_qseecomd_prop)
+ vendor_internal_prop(vendor_vaultkeeperd_prop)
+ vendor_internal_prop(vendor_wt_rpmb_status_prop)
+ vendor_internal_prop(gps_prop)
++
++# LOS19.1 compatibility for lineage-20.0-legacy-um QCOM location sepolicy.
++vendor_internal_prop(xtra_control_prop)

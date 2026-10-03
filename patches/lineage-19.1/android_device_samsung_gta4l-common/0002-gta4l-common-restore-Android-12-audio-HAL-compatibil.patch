@@ -1,0 +1,53 @@
+From d07d804949d3a8115fcb2babd61d4eed3d0cb7b0 Mon Sep 17 00:00:00 2001
+From: Jomama691 <245727092+jojobear691@users.noreply.github.com>
+Date: Sat, 3 Oct 2026 14:08:37 -0600
+Subject: [PATCH 2/3] gta4l-common: restore Android 12 audio HAL compatibility
+
+---
+ audio/impl/Android.bp | 29 +++++++++--------------------
+ 1 file changed, 9 insertions(+), 20 deletions(-)
+
+diff --git a/audio/impl/Android.bp b/audio/impl/Android.bp
+index d8408e4..4033722 100644
+--- a/audio/impl/Android.bp
++++ b/audio/impl/Android.bp
+@@ -59,6 +59,13 @@ cc_defaults {
+     export_header_lib_headers: [
+         "android.hardware.audio-impl_gta4l_headers",
+     ],
++    cflags: [
++        "-DCOMMON_TYPES_FILE_VERSION=FILE_VERSION",
++        "-DCORE_TYPES_FILE_VERSION=FILE_VERSION",
++        "-DCOMMON_TYPES_CPP_VERSION=CPP_VERSION",
++        "-DCORE_TYPES_CPP_VERSION=CPP_VERSION",
++    ],
++
+ }
+ 
+ cc_library_shared {
+@@ -144,23 +151,5 @@ cc_library_shared {
+     ],
+ }
+ 
+-cc_library_shared {
+-    name: "android.hardware.audio@7.1-impl_gta4l",
+-    defaults: ["android.hardware.audio-impl_gta4l"],
+-    shared_libs: [
+-        "android.hardware.audio@7.0",
+-        "android.hardware.audio@7.1",
+-        "android.hardware.audio@7.1-util",
+-        "android.hardware.audio.common@7.0",
+-        "android.hardware.audio.common@7.1-enums",
+-        "android.hardware.audio.common@7.1-util",
+-        "libbase",
+-    ],
+-    cflags: [
+-        "-DMAJOR_VERSION=7",
+-        "-DMINOR_VERSION=1",
+-        "-DCOMMON_TYPES_MINOR_VERSION=0",
+-        "-DCORE_TYPES_MINOR_VERSION=0",
+-        "-include common/all-versions/VersionMacro.h",
+-    ],
+-}
++// Disabled for LOS19.1 / Android 12 compatibility.
++// Android 12 only provides audio HAL 7.0 modules, and this 7.1 module is not referenced.

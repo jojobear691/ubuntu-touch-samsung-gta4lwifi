@@ -1,0 +1,37 @@
+diff --git a/build-kernel.sh b/build-kernel.sh
+index 70f7f942ca4feeb791c8c5e24317db17a4ab998a..3787b597f2a20cd983b17d09d7239b77de35272a 100755
+--- a/build-kernel.sh
++++ b/build-kernel.sh
+@@ -54,7 +54,9 @@ make O="$OUT" $MAKEOPTS $deviceinfo_kernel_defconfig
+ if ${MENUCONFIG:-false}; then
+     make O="$OUT" $MAKEOPTS menuconfig
+ fi
+-make O="$OUT" $MAKEOPTS -j$(nproc --all)
++KERNEL_BUILD_TARGETS="${deviceinfo_kernel_build_targets:-$deviceinfo_kernel_image_name modules}"
++echo "Building kernel targets: $KERNEL_BUILD_TARGETS"
++make O="$OUT" $MAKEOPTS -j$(nproc --all) $KERNEL_BUILD_TARGETS
+ if [ "$deviceinfo_kernel_disable_modules" != "true" ]
+ then
+     make O="$OUT" $MAKEOPTS INSTALL_MOD_STRIP=1 INSTALL_MOD_PATH="$INSTALL_MOD_PATH" modules_install
+diff --git a/system-image-from-ota.sh b/system-image-from-ota.sh
+index f01e36c703eac9122a03951f4df78233a50d9959..48795de47ac5c11e97c086e1f8810c930375da0e 100755
+--- a/system-image-from-ota.sh
++++ b/system-image-from-ota.sh
+@@ -183,7 +183,7 @@ do
+                     FULL_IMAGE=1
+                     rm -f "$OUT/rootfs.img"
+                     truncate -s "${deviceinfo_system_partition_size:-3000M}" "$OUT/rootfs.img"
+-                    mkfs.ext4 -F "$OUT/rootfs.img"
++                    mkfs.ext4 -F -O "^orphan_file" "$OUT/rootfs.img"
+                     # Disable orphan_file as needed when host e2fsprogs 1.47+ would create something
+                     # incompatible with e2fsck 1.45 of UBports recovery breaking 20.04 OTA updates
+ 		    if dumpe2fs -h "$OUT/rootfs.img" | grep -q 'orphan_file'; then
+@@ -236,7 +236,7 @@ do
+                         sudo umount "$SYSTEM_MOUNTPOINT"
+                         rmdir "$SYSTEM_MOUNTPOINT"
+                     else
+-                        mke2fs -t ext4 -O \^metadata_csum "$OUT/rootfs.img" ${deviceinfo_system_partition_size:-3500M} -d "$SYSTEM_MOUNTPOINT"
++                        mke2fs -t ext4 -O \^metadata_csum,\^orphan_file "$OUT/rootfs.img" ${deviceinfo_system_partition_size:-3500M} -d "$SYSTEM_MOUNTPOINT"
+                         rm -rf "$SYSTEM_MOUNTPOINT"
+                     fi
+                     # Create fastboot flashable image

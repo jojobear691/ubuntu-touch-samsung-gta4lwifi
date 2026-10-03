@@ -62,6 +62,9 @@ experimental Bluetooth/VHCI work.
 - `ramdisk-overlay/` — boot ramdisk additions
 - `ramdisk-recovery-overlay/` — recovery additions
 - `prebuilt/gta4lwifi/` — required device-tree images
+- `manifests/` — sanitized Android-base project selection
+- `patches/lineage-19.1/` — recovered Wi-Fi Android-base source changes
+- `patches/halium-generic-adaptation-build-tools/` — host-build compatibility
 - `build.sh` — entry point for UBports community-port build tools
 - `.gitlab-ci.yml` — community-port CI configuration
 

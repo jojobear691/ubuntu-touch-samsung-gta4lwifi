@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+  <project name="LineageOS/android_device_samsung_gta4lwifi"
+           path="device/samsung/gta4lwifi"
+           remote="github"
+           revision="lineage-20" />
+
+  <project name="LineageOS/android_device_samsung_gta4l-common"
+           path="device/samsung/gta4l-common"
+           remote="github"
+           revision="lineage-20" />
+
+  <project name="LineageOS/android_kernel_samsung_sm6115"
+           path="kernel/samsung/sm6115"
+           remote="github"
+           revision="lineage-20" />
+
+  <project name="TheMuppets/proprietary_vendor_samsung_gta4lwifi"
+           path="vendor/samsung/gta4lwifi"
+           remote="github"
+           revision="lineage-20" />
+
+  <project name="TheMuppets/proprietary_vendor_samsung_gta4l-common"
+           path="vendor/samsung/gta4l-common"
+           remote="github"
+           revision="lineage-20" />
+  <project name="LineageOS/android_device_qcom_sepolicy_vndr"
+           path="device/qcom/sepolicy_vndr-legacy-um"
+           remote="github"
+           revision="lineage-20.0-legacy-um" />
+
+
+  <project name="LineageOS/android_device_samsung_gta4l"
+           path="device/samsung/gta4l"
+           remote="github"
+           revision="lineage-20" />
+
+  <project name="TheMuppets/proprietary_vendor_samsung_gta4l"
+           path="vendor/samsung/gta4l"
+           remote="github"
+           revision="lineage-20" />
+
+</manifest>
