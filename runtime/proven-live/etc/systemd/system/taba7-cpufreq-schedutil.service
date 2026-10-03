@@ -1,0 +1,11 @@
+[Unit]
+Description=Samsung Tab A7 schedutil CPU-frequency governor
+After=systemd-modules-load.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/taba7-cpufreq-schedutil
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

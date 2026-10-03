@@ -1,0 +1,29 @@
+#!/bin/sh
+set -eu
+
+found=0
+for attempt in $(seq 1 30); do
+  for policy in /sys/devices/system/cpu/cpufreq/policy*; do
+    [ -d "$policy" ] || continue
+    found=1
+    if ! grep -qw schedutil "$policy/scaling_available_governors"; then
+      echo "schedutil is unavailable for $(basename "$policy")" >&2
+      exit 1
+    fi
+    printf '%s\n' schedutil > "$policy/scaling_governor"
+  done
+  [ "$found" -eq 1 ] && break
+  sleep 1
+done
+
+if [ "$found" -ne 1 ]; then
+  echo "No CPU-frequency policies became available" >&2
+  exit 1
+fi
+
+for policy in /sys/devices/system/cpu/cpufreq/policy*; do
+  [ -r "$policy/scaling_governor" ] || continue
+  governor=$(cat "$policy/scaling_governor")
+  echo "$(basename "$policy") governor=$governor"
+  [ "$governor" = schedutil ] || exit 1
+done

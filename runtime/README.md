@@ -20,6 +20,9 @@ system account, not private owner information.
   Android container without embedding or prompting for a sudo password;
 - a fake-udev-trigger override matching the deliberately disabled stock
   Android-container launcher;
+- a persistent `schedutil` CPU-frequency policy and cold-boot ordering that
+  starts location and Android boot-completion only after the proven GPS and
+  custom-container readiness service;
 - the current Camera application QML overrides;
 - the text AppArmor override used with the patched media-hub service; and
 - the camera trust-agent restart drop-in added after proving an EOF busy-loop
