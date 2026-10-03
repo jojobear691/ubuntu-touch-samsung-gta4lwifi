@@ -1,10 +1,12 @@
 [Unit]
-Requisite=
+Description=Set boot completion properties in the custom Android container
 Wants=taba7-gps-lppe-fix.service
-After=
 After=taba7-gps-lppe-fix.service
 
 [Service]
-ExecStart=
+Type=oneshot
 ExecStart=/usr/local/sbin/gta4lwifi-set-android-boot-complete
 TimeoutStartSec=150
+
+[Install]
+WantedBy=multi-user.target
