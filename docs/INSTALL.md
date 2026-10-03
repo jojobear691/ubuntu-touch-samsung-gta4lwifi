@@ -33,7 +33,9 @@ The maintainer performed the successful installation as follows:
 1. Install the specified LineageOS 19.1 ZIP through OrangeFox.
 2. Reformat userdata as ext4 from an ADB shell in OrangeFox.
 3. Flash the Ubuntu Touch boot and DTBO images with Heimdall.
-4. Copy `rootfs.img` and `system.img` to `/data` through ADB.
+4. Copy `rootfs.img` and the matching Android image to `/data` through ADB
+   (`android-rootfs.img` for the current release, `system.img` for the
+   historical June 5 release).
 5. Boot Ubuntu Touch.
 6. Apply the audio/Wi-Fi post-install layer bundled in the June 5 release.
 
@@ -104,7 +106,69 @@ recovery is outside the currently verified scope of this guide.
 
 ### Ubuntu Touch image set
 
-The fully evidenced release for this procedure is:
+#### Current proven-live GitHub image set (recommended)
+
+The current matched image set was captured from the maintainer's working
+SM-T500 on October 3, 2026. The boot and DTBO files are exact full-partition
+captures. The Android image is the exact live `/userdata/android-rootfs.img`.
+The Ubuntu rootfs was copied from the live read-only loop image, checked with
+`e2fsck`, reduced from 8 GiB to 4,124,254,208 bytes, and sanitized before
+publication by removing root and phablet SSH authorized keys plus root's
+download-history file. Mutable userdata, Wi-Fi profiles, application data,
+logs, device identifiers, and credentials are not included.
+
+Release page:
+
+<https://github.com/jojobear691/ubuntu-touch-samsung-gta4lwifi/releases/tag/proven-live-20261003>
+
+Download these five files from that release:
+
+```text
+boot.img
+dtbo.img
+rootfs.img.zst
+android-rootfs.img.zst
+SHA256SUMS.txt
+```
+
+Verify the downloaded assets before decompressing:
+
+```bash
+sha256sum --check SHA256SUMS.txt
+```
+
+Stop if any checksum fails. Decompress the two filesystem images without
+renaming them:
+
+```bash
+zstd -d rootfs.img.zst -o rootfs.img
+zstd -d android-rootfs.img.zst -o android-rootfs.img
+```
+
+Their required uncompressed sizes and SHA-256 values are:
+
+```text
+rootfs.img
+  Size: 4,124,254,208 bytes
+  SHA-256: 4c5f058b3b8e4bcd9a8ca790baba99d28486bc0a3c199ac72603e239a7f86761
+
+android-rootfs.img
+  Size: 497,295,360 bytes
+  SHA-256: 7b5916f4fc28b0e3f249a564269791d42afd2b9f034378fb6528ed9f14ccb80d
+```
+
+Verify those hashes after decompression. Keep all four images from this one
+release together; do not substitute the repository's standalone prebuilt
+DTBO or mix files from an older SourceForge pack.
+
+The read-only images do not contain the mutable userdata post-install layer.
+Complete section 7 after first boot for the historically proven audio/Wi-Fi
+services. The newer recovered runtime source is documented under
+`runtime/proven-live/`, but it is not yet a one-command installer.
+
+#### Historical June 5 SourceForge image set
+
+The earlier fully evidenced release for this procedure is:
 
 ```text
 SM-T500-gta4lwifi-UbuntuTouch-24.04-Halium12-FULL-INSTALL-PACK-WORKING-AUDIO-WIFI-20260605.tar.gz
@@ -179,6 +243,7 @@ Use a Linux host with:
 
 - ADB
 - Heimdall
+- `zstd`
 - `sha256sum`
 - a reliable USB data cable
 - enough free disk space for the images
@@ -195,15 +260,27 @@ Do not use fastboot for the Samsung partition-flashing steps in this guide.
 
 ## 1. Confirm the device
 
-In Android or recovery, inspect the model and codename before flashing. The
-only supported identity is:
+The only supported hardware identity is:
 
 ```text
 Model: SM-T500
 Codename: gta4lwifi
 ```
 
-Stop immediately if the model is an LTE variant or the identity is uncertain.
+The tested third-party OrangeFox build is compiled with LTE recovery
+properties and can report `SM-T505N` / `gta4l` even while running on an
+SM-T500. Therefore, do not use recovery's `ro.product.model` or
+`ro.product.device` as the sole hardware check. In recovery, verify the
+bootloader identity instead:
+
+```bash
+adb shell getprop ro.bootloader
+```
+
+The value must begin with `T500` (the proven tablet reported
+`T500XXS8CXG1`). Stop immediately if it begins with `T505`, is empty, or the
+physical model is uncertain. This recovery-property exception does not make
+the Ubuntu Touch images safe for LTE tablets.
 
 ## 2. Install the tested LineageOS base
 
@@ -325,7 +402,7 @@ was used, stop; that combination is not covered by this guide.
 After Heimdall completes successfully, reboot manually into OrangeFox rather
 than allowing the tablet to attempt its first Ubuntu Touch boot yet.
 
-## 5. Copy rootfs.img and system.img
+## 5. Copy rootfs.img and the matching Android image
 
 In OrangeFox, mount `/data`. Confirm it is mounted as ext4:
 
@@ -333,26 +410,40 @@ In OrangeFox, mount `/data`. Confirm it is mounted as ext4:
 adb shell 'mount | grep " /data " && df -h /data'
 ```
 
-Copy the two large images:
+For the current proven-live GitHub release, copy the two large images using
+their exact names:
 
 ```bash
 adb push images/rootfs.img /data/rootfs.img
-adb push images/system.img /data/system.img
+adb push images/android-rootfs.img /data/android-rootfs.img
 ```
 
 Confirm that both destination files exist and flush pending writes:
 
 ```bash
-adb shell 'ls -l /data/rootfs.img /data/system.img && sync'
+adb shell 'ls -l /data/rootfs.img /data/android-rootfs.img && sync'
 ```
 
 Compare the reported byte sizes with the host files:
 
 ```bash
-stat -c '%n %s' images/rootfs.img images/system.img
+stat -c '%n %s' images/rootfs.img images/android-rootfs.img
 ```
 
 Do not continue if either transfer failed or a size differs.
+
+If and only if you are using the complete historical June 5 SourceForge image
+set, keep its Android image named `system.img` and use this pair instead:
+
+```bash
+adb push images/rootfs.img /data/rootfs.img
+adb push images/system.img /data/system.img
+adb shell 'ls -l /data/rootfs.img /data/system.img && sync'
+stat -c '%n %s' images/rootfs.img images/system.img
+```
+
+Do not rename a historical `system.img` to `android-rootfs.img`; the Halium
+boot script deliberately uses the filename to choose the Android mount mode.
 
 ## 6. First boot
 
@@ -366,12 +457,17 @@ recovery and recheck:
 
 - userdata is ext4;
 - `/data/rootfs.img` exists and has the correct size;
-- `/data/system.img` exists and has the correct size;
+- the matching Android image exists with the correct name and size
+  (`/data/android-rootfs.img` for the current release or
+  `/data/system.img` for the historical June 5 release);
 - boot and DTBO came from the same Ubuntu Touch build;
 - the tested Android 12 vendor and ODM base was installed.
 
-The Halium ramdisk intentionally locates `rootfs.img` and `system.img` on the
-userdata filesystem and mounts the Android image for the LXC container.
+The proven Halium ramdisk locates `rootfs.img` plus either
+`android-rootfs.img` or `system.img` on the userdata filesystem and mounts
+the Android image for the LXC container. The filename selects the Android
+mount mode, so use the name supplied by the matching release. The current
+proven-live release and tablet use `android-rootfs.img`.
 
 ## 7. Apply the bundled audio/Wi-Fi layer
 
