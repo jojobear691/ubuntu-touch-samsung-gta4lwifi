@@ -1,0 +1,13 @@
+[Unit]
+Description=Bind patched media-hub server and AppArmor profile for Tab A7 camera shutter fix
+After=local-fs.target apparmor.service
+Before=lightdm.service user@32011.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh /userdata/ut-scripts/taba7-patched-mediahub-bind.sh start
+ExecStop=/bin/sh /userdata/ut-scripts/taba7-patched-mediahub-bind.sh stop
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,15 @@
+[Unit]
+Description=Tab A7 temporary Android camera island
+After=multi-user.target lxc@android.service
+ConditionPathExists=/userdata/ut-scripts/taba7-camera-island-start.sh
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/userdata/ut-scripts/taba7-camera-island-start.sh
+ExecStop=/userdata/ut-scripts/taba7-camera-island-stop.sh
+TimeoutStartSec=120
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,13 @@
+[Unit]
+Description=Disable About This Device button on gta4lwifi Ubuntu Touch
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStartPre=-/bin/umount /usr/share/lomiri-system-settings/qml-plugins/about
+ExecStart=/bin/mount --bind /userdata/ut-fixes/about-button-disabled /usr/share/lomiri-system-settings/qml-plugins/about
+ExecStop=-/bin/umount /usr/share/lomiri-system-settings/qml-plugins/about
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

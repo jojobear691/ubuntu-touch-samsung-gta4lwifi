@@ -1,0 +1,13 @@
+[Unit]
+Description=Samsung Tab A7 late PulseAudio droid startup
+After=taba7-android-audio-hal.service user@32011.service
+Requires=taba7-android-audio-hal.service
+
+[Service]
+Type=oneshot
+ExecStart=/userdata/ut-scripts/taba7-audio-pulse-late.sh
+RemainAfterExit=yes
+TimeoutStartSec=180
+
+[Install]
+WantedBy=multi-user.target

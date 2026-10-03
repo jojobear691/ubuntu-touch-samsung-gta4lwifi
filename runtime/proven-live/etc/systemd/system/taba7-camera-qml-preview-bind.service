@@ -1,0 +1,12 @@
+[Unit]
+Description=Bind Tab A7 clean Camera QML preview files
+After=local-fs.target
+Before=lightdm.service lomiri.service
+
+[Service]
+Type=oneshot
+ExecStart=/userdata/ut-scripts/taba7-camera-qml-preview-bind.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

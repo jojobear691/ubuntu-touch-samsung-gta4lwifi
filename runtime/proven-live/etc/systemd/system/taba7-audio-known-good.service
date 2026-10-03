@@ -1,0 +1,13 @@
+[Unit]
+Description=Samsung Tab A7 known-good manual PulseAudio HIDL speaker bring-up
+After=multi-user.target ut-gta4lwfi-ui.service
+Wants=ut-gta4lwfi-ui.service
+
+[Service]
+Type=oneshot
+ExecStart=/userdata/ut-scripts/taba7-audio-known-good.sh
+RemainAfterExit=yes
+TimeoutStartSec=240
+
+[Install]
+WantedBy=multi-user.target

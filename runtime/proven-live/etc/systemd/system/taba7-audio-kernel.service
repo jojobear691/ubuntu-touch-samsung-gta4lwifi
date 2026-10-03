@@ -1,0 +1,14 @@
+[Unit]
+Description=Samsung Tab A7 audio kernel bring-up
+After=ut-gta4lwfi-ui.service taba7-wlan-on.service taba7-hide-extra-wifi.service NetworkManager.service
+ConditionPathExists=/sys/kernel/boot_adsp/boot
+
+[Service]
+Type=oneshot
+ExecStartPre=/bin/sleep 8
+ExecStart=/userdata/ut-scripts/taba7-audio-kernel.sh
+RemainAfterExit=yes
+TimeoutStartSec=90
+
+[Install]
+WantedBy=multi-user.target

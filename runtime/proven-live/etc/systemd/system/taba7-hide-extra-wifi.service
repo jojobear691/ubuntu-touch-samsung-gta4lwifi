@@ -1,0 +1,13 @@
+[Unit]
+Description=Hide duplicate Samsung Tab A7 Wi-Fi helper interfaces from NetworkManager
+Wants=NetworkManager.service taba7-wlan-on.service
+After=NetworkManager.service taba7-wlan-on.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /userdata/ut-scripts/taba7-hide-extra-wifi.sh
+TimeoutStartSec=120
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

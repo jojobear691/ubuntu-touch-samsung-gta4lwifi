@@ -1,0 +1,9 @@
+[Unit]
+Description=Samsung Tab A7 delayed camera preview + photo fix
+After=taba7-v10-media-camera-island.service lomiri-full-greeter.service graphical.target
+Wants=taba7-v10-media-camera-island.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/taba7-camera-delayed-boot-fix.sh
+RemainAfterExit=yes

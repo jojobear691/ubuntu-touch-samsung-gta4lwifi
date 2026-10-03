@@ -1,0 +1,13 @@
+[Unit]
+Description=Samsung Tab A7 V10 media/camera island
+After=multi-user.target lxc-android-config.service ut-gta4lwifi-ui.service taba7-audio-known-good.service
+Wants=ut-gta4lwifi-ui.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/bash /userdata/ut-scripts/taba7-v10-media-camera-island.sh
+TimeoutStartSec=240
+
+[Install]
+WantedBy=multi-user.target

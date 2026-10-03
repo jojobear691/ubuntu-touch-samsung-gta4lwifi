@@ -1,0 +1,13 @@
+[Unit]
+Description=Taba7 Android scheduling_policy binder stub
+After=ut-gta4lwifi-ui.service
+Wants=ut-gta4lwifi-ui.service
+
+[Service]
+Type=oneshot
+TimeoutStartSec=45
+RemainAfterExit=yes
+ExecStart=/userdata/ut-scripts/taba7-scheduling-policy.sh
+
+[Install]
+WantedBy=multi-user.target

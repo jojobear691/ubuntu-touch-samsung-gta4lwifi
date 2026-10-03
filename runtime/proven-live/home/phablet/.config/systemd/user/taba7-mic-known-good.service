@@ -1,0 +1,13 @@
+[Unit]
+Description=Samsung Tab A7 known-good microphone source
+After=default.target
+
+[Service]
+Type=simple
+ExecStart=/bin/sh /home/phablet/bin/taba7-mic-known-good-daemon.sh
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=0
+
+[Install]
+WantedBy=default.target

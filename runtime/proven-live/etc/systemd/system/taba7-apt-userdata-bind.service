@@ -1,0 +1,12 @@
+[Unit]
+Description=Bind apt lists and cache to userdata
+After=local-fs.target
+RequiresMountsFor=/userdata
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh /userdata/ut-scripts/taba7-apt-userdata-bind.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

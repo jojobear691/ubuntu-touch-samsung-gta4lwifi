@@ -1,0 +1,13 @@
+[Unit]
+Description=Start known-good Ubuntu Touch UI stack for Samsung Galaxy Tab A7 Wi-Fi gta4lwifi
+After=local-fs.target mount-android-partitions.service dbus.service
+Wants=mount-android-partitions.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ut-gta4lwifi-start-ui.sh
+RemainAfterExit=yes
+TimeoutStartSec=240
+
+[Install]
+WantedBy=multi-user.target

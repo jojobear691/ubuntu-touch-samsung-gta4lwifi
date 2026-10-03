@@ -1,0 +1,11 @@
+[Unit]
+Description=Taba7 local gst-droid video helper HTTP bridge
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /home/phablet/bin/taba7-video-helper-http.py
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target

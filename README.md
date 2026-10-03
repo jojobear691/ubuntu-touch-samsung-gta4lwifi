@@ -65,6 +65,7 @@ experimental Bluetooth/VHCI work.
 - `manifests/` — sanitized Android-base project selection
 - `patches/lineage-19.1/` — recovered Wi-Fi Android-base source changes
 - `patches/halium-generic-adaptation-build-tools/` — host-build compatibility
+- `runtime/` — sanitized text source recovered from the proven live Wi-Fi stack
 - `build.sh` — entry point for UBports community-port build tools
 - `.gitlab-ci.yml` — community-port CI configuration
 

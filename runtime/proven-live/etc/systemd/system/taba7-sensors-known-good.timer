@@ -1,0 +1,11 @@
+[Unit]
+Description=Delayed start for Samsung Tab A7 known-good sensors
+
+[Timer]
+OnBootSec=100s
+AccuracySec=5s
+Unit=taba7-sensors-known-good.service
+Persistent=false
+
+[Install]
+WantedBy=timers.target

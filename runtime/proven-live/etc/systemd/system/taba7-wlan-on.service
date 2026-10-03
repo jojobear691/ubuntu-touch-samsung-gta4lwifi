@@ -1,0 +1,13 @@
+[Unit]
+Description=Samsung Galaxy Tab A7 Wi-Fi wlan0 bring-up after Stage E4 Android helper stack
+Wants=ut-gta4lwifi-ui.service NetworkManager.service
+After=ut-gta4lwifi-ui.service NetworkManager.service lxc.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /userdata/ut-scripts/taba7-wlan-on.sh
+TimeoutStartSec=180
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

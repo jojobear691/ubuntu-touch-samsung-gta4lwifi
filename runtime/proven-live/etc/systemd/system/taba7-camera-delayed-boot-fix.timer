@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Samsung Tab A7 camera fix after boot
+
+[Timer]
+OnBootSec=70s
+AccuracySec=10s
+Unit=taba7-camera-delayed-boot-fix.service
+Persistent=false
+
+[Install]
+WantedBy=timers.target

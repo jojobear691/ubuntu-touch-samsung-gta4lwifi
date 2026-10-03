@@ -1,0 +1,12 @@
+[Unit]
+Description=Samsung Tab A7 camera still-photo libcameraservice fix
+After=taba7-v10-media-camera-island.service
+Requires=taba7-v10-media-camera-island.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/taba7-camera-photo-fix-bind.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

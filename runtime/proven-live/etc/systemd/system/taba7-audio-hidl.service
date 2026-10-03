@@ -1,0 +1,13 @@
+[Unit]
+Description=Samsung Tab A7 Ubuntu Touch HIDL audio bring-up
+After=multi-user.target lxc-android-config.service ut-gta4lwfi-ui.service
+Wants=ut-gta4lwfi-ui.service
+
+[Service]
+Type=oneshot
+ExecStart=/userdata/ut-scripts/taba7-audio-hidl.sh
+RemainAfterExit=yes
+TimeoutStartSec=180
+
+[Install]
+WantedBy=multi-user.target

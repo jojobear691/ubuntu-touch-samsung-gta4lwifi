@@ -1,0 +1,16 @@
+[Unit]
+Description=Samsung Tab A7 Android audio HAL service
+After=lxc-android-config.service ut-gta4lwfi-ui.service
+Wants=ut-gta4lwfi-ui.service
+
+[Service]
+Type=simple
+ExecStartPre=/userdata/ut-scripts/taba7-audio-prep.sh
+ExecStart=/usr/bin/lxc-attach -n android -- /vendor/bin/hw/android.hardware.audio.service
+Restart=on-failure
+RestartSec=3
+TimeoutStartSec=180
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,163 @@
+#include <tunables/global>
+
+/usr/bin/media-hub-server (attach_disconnected) {
+  #include <abstractions/base>
+  #include <abstractions/audio>
+  #include <abstractions/nameservice>
+  #include <abstractions/dbus-session>
+  #include <abstractions/dbus-strict>
+  #include <abstractions/user-tmp>
+  #include <abstractions/video>
+  #include "/usr/share/apparmor/hardware/audio.d"
+  #include "/usr/share/apparmor/hardware/graphics.d"
+  #include "/usr/share/apparmor/hardware/video.d"
+
+  deny /dev/cpuctl/apps/tasks w,
+  deny /dev/cpuctl/apps/bg_non_interactive/tasks w,
+
+  @{PROC}/interrupts r,
+  owner @{PROC}/cmdline r,
+  owner @{PROC}/[0-9]*/auxv r,
+  owner @{PROC}/[0-9]*/fd/ r,
+  owner @{PROC}/[0-9]*/status r,
+  owner @{PROC}/[0-9]*/attr/current r,
+  owner @{PROC}/[0-9]*/task/ r,
+  owner @{PROC}/[0-9]*/task/[0-9]*/ r,
+  owner @{PROC}/[0-9]*/cmdline r,
+
+  /etc/udev/udev.conf r,
+  deny /run/udev/data/** r,
+
+  # specific to the mediatek soc
+  @{PROC}/xlog/setfil r,
+  @{PROC}/M4U_device r,
+  /dev/Vcodec rw,
+  /sys/bus/platform/drivers/** rw,
+  /{,android/}system/etc/mtk_omx_core.cfg r,
+  /dev/devmap r,
+  @{PROC}/mtk_mdp_cmdq r,
+
+  /dev/video*                           r,
+  /sys/devices/**/video4linux/video**   r,
+  /sys/devices/**/video4linux/**/uevent r,
+
+  /sys/kernel/debug/tracing/trace_marker w,
+  /dev/ashmem rw,
+
+  # For Android, required to register decoding_service
+  /dev/{,binderfs/}binder rw,
+  # For Android 8+, to pass HW buffers
+  /dev/{,binderfs/}hwbinder rw,
+
+  ptrace (read) peer=@{profile_name},
+
+  # Explicitly deny this-- it is not needed
+  /dev/fb0 rw,
+
+  # libhybris
+  /{,var/}run/shm/hybris_shm_data rw,
+  /usr/lib/@{multiarch}/libhybris/*.so mr,
+  /{,android/}system/build.prop r,
+  /{,android/}linkerconfig/** r,
+  /dev/__properties__/{,*} r,
+  # These libraries can be in any of:
+  #  /vendor/lib{,64}
+  #  /system/lib{,64}
+  #  /system/vendor/lib{,64}
+  #  /android/vendor/lib{,64}
+  #  /android/system/lib{,64}
+  #  /android/system/vendor/lib{,64}
+  /{,android/}vendor/lib{,64}/**           r,
+  /{,android/}vendor/lib{,64}/**.so        m,
+  /{,android/}system/lib{,64}/**           r,
+  /{,android/}system/lib{,64}/**.so        m,
+  /{,android/}system/vendor/lib{,64}/**    r,
+  /{,android/}system/vendor/lib{,64}/**.so m,
+  /{,android/}odm/lib{,64}/**    r,
+  /{,android/}odm/lib{,64}/**.so m,
+  /{,android/}apex/com.android.*/lib{,64}/**     r,
+  /{,android/}apex/com.android.*/lib{,64}/**.so  m,
+
+  # attach_disconnected path
+  /{,dev/}socket/property_service rw,
+
+  # Android logging triggered by platform. Can safely deny
+  deny /dev/socket/logdw w,
+  deny /dev/log_main w,
+  deny /dev/log_radio w,
+  deny /dev/log_events w,
+  deny /dev/log_system w,
+
+  # persistent storage logging should not be necessary
+  deny /dev/pmsg0 w,
+
+  # Allow all access to powerd for now, but we can fine-tune this if needed
+  dbus (receive, send)
+      bus=system
+      path=/com/lomiri/Repowerd
+      interface=com.lomiri.Repowerd,
+
+  dbus (receive, send)
+      bus=system
+      path=/com/canonical/Unity/Screen
+      interface=com.canonical.Unity.Screen,
+
+  owner @{HOME}/.gstreamer*/registry.*.bin*       rw,
+  owner @{HOME}/.gstreamer*/                      rw,
+  owner @{HOME}/.cache/gstreamer*/                rw,
+  owner @{HOME}/.cache/gstreamer*/registry.*.bin* rw,
+  /usr/lib/@{multiarch}/gstreamer*/gstreamer*/gst-plugin-scanner ix,
+
+  # The user-tmp abstraction allows writes to these files, but gstreamer sometimes
+  # needs to also mmap its temporary files
+  owner /tmp/orcexec* m,
+
+  /{,android/}system/etc/media_codecs{,_*}.xml r,
+  /{,android/}vendor/etc/media_codecs{,_*}.xml r,
+  /etc/wildmidi/wildmidi.cfg r,
+
+  # Allow read on all directories
+  /**/ r,
+
+  # camera click
+  /{,android/}system/media/audio/ui/camera_click.ogg r,
+
+  # custom sounds
+  /custom/usr/share/sounds/ r,
+  /custom/usr/share/sounds/** r,
+
+  # Allow read on click install directories, removable media and files in
+  # /usr/local/share.
+  /etc/click/** r,
+  /usr/share/** r,
+  /usr/local/share/** r,
+  /{media,mnt,opt,srv}/** r,
+
+  # Allow reading any files in non-hidden directories
+  owner @{HOME}/[^.]*    rk,
+  owner @{HOME}/[^.]*/   rk,
+  owner @{HOME}/[^.]*/** rk,
+
+  # Allow reading files in XDG directories (ie, where apps are allowed to
+  # write)
+  owner @{HOME}/.cache/**       rk,
+  owner @{HOME}/.local/share/** rk,
+  owner /{,var/}run/user/[0-9]*/** rk,
+
+  # Permissions for desktop video decoding
+  unix (bind, send) type=dgram addr="@media-hub-server*",
+  /sys/devices/**/drm/render** r,
+  /sys/devices/**/drm/card** r,
+  /sys/devices/system/node/node*/meminfo r,
+  /run/user/*/orcexec* rw,
+  /run/user/**/mir_socket rw,
+
+  # Unisoc video decoding
+  /dev/dri/**                     rw,
+
+  # Snap permission checks
+  /run/snapd.socket               rw,
+
+  # Site-specific additions and overrides. See local/README for details.
+  #include <local/usr.bin.media-hub-server>
+}

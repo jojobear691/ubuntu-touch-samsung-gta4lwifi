@@ -1,0 +1,13 @@
+[Unit]
+Description=Samsung Tab A7 known-good Android sensor island plus Ubuntu Touch sensorfwd
+After=lxc-android-config.service ut-gta4lwifi-ui.service taba7-wlan-on.service taba7-audio-known-good.service
+
+[Service]
+Type=simple
+ExecStart=/userdata/ut-scripts/taba7-sensors-known-good.sh
+Restart=on-failure
+RestartSec=5
+KillMode=control-group
+
+[Install]
+WantedBy=multi-user.target
